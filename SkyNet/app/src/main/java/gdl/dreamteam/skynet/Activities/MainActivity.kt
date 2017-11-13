@@ -2,10 +2,12 @@ package gdl.dreamteam.skynet.Activities
 
 import android.content.Intent
 import android.databinding.DataBindingUtil
+import android.media.MediaPlayer
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.util.Patterns
 import android.view.View
@@ -15,12 +17,14 @@ import gdl.dreamteam.skynet.Bindings.LoginBinding
 import gdl.dreamteam.skynet.Exceptions.ForbiddenException
 import gdl.dreamteam.skynet.Exceptions.InternalErrorException
 import gdl.dreamteam.skynet.Exceptions.UnauthorizedException
+import gdl.dreamteam.skynet.Extensions.bork
 import gdl.dreamteam.skynet.Extensions.longToast
 import gdl.dreamteam.skynet.Extensions.shortToast
 import gdl.dreamteam.skynet.Models.*
 import gdl.dreamteam.skynet.Others.IDataRepository
 import gdl.dreamteam.skynet.Others.LoginService
 import gdl.dreamteam.skynet.Others.RestRepository
+import gdl.dreamteam.skynet.Others.SettingsService
 import gdl.dreamteam.skynet.R
 import gdl.dreamteam.skynet.databinding.MainBinding
 
@@ -31,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var loginButton: Button
     private val uiThread = Handler(Looper.getMainLooper())
+    private lateinit var settingsService : SettingsService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,12 +45,25 @@ class MainActivity : AppCompatActivity() {
         binding.login = LoginBinding()
         progressBar = findViewById(R.id.progressBar) as ProgressBar
         loginButton = findViewById(R.id.loginButton) as Button
+        settingsService = SettingsService(applicationContext)
+
+        val token = settingsService.getString("Token")
+        if(!token.isEmpty()){
+            navigateToZones(token)
+        }
     }
 
-    private fun parseZone(zone: Zone?) {
-        val intent = Intent(this, ClientsActivity::class.java)
-        val rawZone = RestRepository.gson.toJson(zone, Zone::class.java)
-        intent.putExtra("zone", rawZone)
+    private fun navigateToZones(token: String){
+        LoginService.accessToken = token
+        dataRepository.getZone()
+        .thenApply { zone -> parseZone(zone) }
+    }
+
+    private fun parseZone(zones: Array<Zone>?) {
+        bork()
+        val intent = Intent(this, ZonesActivity::class.java)
+        val rawZones = RestRepository.gson.toJson(zones, Array<Zone>::class.java)
+        intent.putExtra("zones", rawZones)
         uiThread.post {
             loginButton.isEnabled = true
             progressBar.visibility = View.INVISIBLE
@@ -96,13 +114,15 @@ class MainActivity : AppCompatActivity() {
         if (!validateForm(username, password)) return
         LoginService.setup(applicationContext)
         progressBar.visibility = View.VISIBLE
-        loginButton.isEnabled = false
+        shortToast("Logging In...")
         LoginService.login(
             username as String,
             password as String
         )
-        .thenApply { dataRepository.getZone("livingroom").get() }
-        .thenApply { zone -> parseZone(zone)}
+        .thenApply { loginResponse -> settingsService.saveString("Token", loginResponse.access_token) }
+        .thenApply { dataRepository.getZone().get() }
+        .thenApply { zones -> parseZone(zones)}
+
         .exceptionally { throwable -> handleExceptions(throwable)}
     }
 }

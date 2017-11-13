@@ -7,7 +7,10 @@ import java.util.concurrent.CompletableFuture
  */
 interface IDataRepository {
     fun addZone(zone: Zone): CompletableFuture<Unit>
+    fun getZone(): CompletableFuture<Array<Zone>?>
     fun getZone(name: String): CompletableFuture<Zone?>
     fun deleteZone(name: String): CompletableFuture<Unit>
     fun updateZone(name: String, zone: Zone): CompletableFuture<Unit>
+
+    fun updateZoneName(zoneId: String, newName: String) : CompletableFuture<Unit>
 }

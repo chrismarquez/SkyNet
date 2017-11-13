@@ -1,7 +1,9 @@
 package gdl.dreamteam.skynet.Others
 
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import com.google.gson.typeadapters.RuntimeTypeAdapterFactory
 import gdl.dreamteam.skynet.Exceptions.*
 import gdl.dreamteam.skynet.Models.*
@@ -32,6 +34,7 @@ class RestRepository : IDataRepository {
             .registerTypeAdapterFactory(typeAdapter)
             .create()
 
+
         fun <T> handleResponseCode(code: Int, handler: () -> T): T {
             println(code)
             when(code) {
@@ -49,6 +52,22 @@ class RestRepository : IDataRepository {
 
     private val url = "http://skynetgdl.azurewebsites.net/api"
 
+    override fun updateZoneName(zoneId: String, newName: String): CompletableFuture<Unit> {
+        return supplyAsync{
+            val json = gson.toJson(ZoneUpdate(zoneId, newName))
+            val connection = URL("$url/zones")
+                    .openConnection() as HttpsURLConnection
+            connection.requestMethod = "PUT"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Accept", "application/json")
+            connection.doOutput = true
+            val streamWriter = OutputStreamWriter(connection.outputStream)
+            streamWriter.write(json)
+            streamWriter.close()
+            handleResponseCode(connection.responseCode) {}
+        }
+    }
+
     override fun addZone(zone: Zone): CompletableFuture<Unit> {
         return supplyAsync {
             val json: String = gson.toJson(zone)
@@ -63,6 +82,28 @@ class RestRepository : IDataRepository {
             streamWriter.write(json)
             streamWriter.close()
             handleResponseCode(connection.responseCode) {}
+        }
+    }
+
+    override fun getZone(): CompletableFuture<Array<Zone>?> {
+        return supplyAsync {
+            val connection = URL("$url/zones/")
+                    .openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer ${LoginService.accessToken}")
+            return@supplyAsync handleResponseCode(connection.responseCode) {
+                val streamReader = InputStreamReader(connection.inputStream)
+                val rawJson = streamReader.readLines()
+                        .stream()
+                        .collect(Collectors.joining())
+                streamReader.close()
+                connection.disconnect()
+                var zones: Array<Zone> = gson.fromJson(rawJson, Array<Zone>::class.java)
+                val jsonZones: String = gson.toJson(zones)
+                Log.wtf("MA-ZONES",jsonZones)
+                return@handleResponseCode zones
+            }
         }
     }
 
