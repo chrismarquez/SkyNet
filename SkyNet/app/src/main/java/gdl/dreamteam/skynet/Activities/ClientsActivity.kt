@@ -11,9 +11,14 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import gdl.dreamteam.skynet.Extensions.bork
+import gdl.dreamteam.skynet.Extensions.shortToast
 import gdl.dreamteam.skynet.Models.*
+import gdl.dreamteam.skynet.Others.IDataRepository
 import gdl.dreamteam.skynet.Others.LoginService
 import gdl.dreamteam.skynet.Others.RestRepository
 import gdl.dreamteam.skynet.Others.SettingsService
@@ -35,24 +40,27 @@ class ClientsActivity : AppCompatActivity() {
     private val clients = ArrayList<LinearLayout>()
     private val values = ArrayList<List<String>>()
     private lateinit var zone: Zone
+    private lateinit var dataRepository: IDataRepository
     private lateinit var settingsService : SettingsService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_clients)
+
         val title = findViewById(R.id.titleMain) as TextView
         if (intent.hasExtra("zone")) loadElements(intent, title)
 
-
+        dataRepository = RestRepository()
     }
 
     private fun loadElements(intent: Intent, title: TextView) {
         if (intent.hasExtra("zone")) load(intent, title)
 
-        val toolbar = findViewById(R.id.toolBar) as Toolbar
+        val toolbar = findViewById(R.id.toolBar2) as Toolbar
         setSupportActionBar(toolbar)
         assert(supportActionBar != null)
         supportActionBar?.setDisplayShowTitleEnabled(false)
+        supportActionBar?.setBackgroundDrawable(getDrawable(R.drawable.custom_toolbar))
 
         settingsService = SettingsService(applicationContext)
     }
@@ -75,6 +83,15 @@ class ClientsActivity : AppCompatActivity() {
         clearToken()
 
         val i = Intent(this, MainActivity::class.java)
+        i.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(i)
+    }
+
+    fun easterEgg(view: View){
+        bork()
+        shortToast("PÓNGASE A PROGRAMAR")
+
+        val i = Intent(this, ZonesActivity::class.java)
         i.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(i)
     }
@@ -112,8 +129,8 @@ class ClientsActivity : AppCompatActivity() {
             val content = values[i]
             val deviceType = deviceTypes[i]
             for (item in content) {
-                val view = inflater.inflate(R.layout.item_clients, layout, false) as TextView
-                view.text = item
+                val view = inflater.inflate(R.layout.item_clients, layout, false) as Button
+                view.text =  " > " + item
                 view.setOnClickListener {
                     val intent = Intent(this, DeviceActivity::class.java)
                     val (device, client) = findDevice(zone, item, deviceType)
@@ -130,7 +147,7 @@ class ClientsActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if(resultCode == Activity.RESULT_OK){
             val title = findViewById(R.id.titleMain) as TextView
-            title.text = intent.getStringExtra("newName")
+            title.text = data!!.getStringExtra("newName")
         }
     }
 
